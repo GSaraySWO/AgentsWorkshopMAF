@@ -106,8 +106,8 @@ El token permite que el código del workshop se autentique con GitHub Models par
 Abre una terminal y ejecuta:
 
 ```sh
-git clone https://github.com/MicrosoftLearning/mslearn-ai-agents.git
-cd mslearn-ai-agents/Labfiles/05-agent-orchestration/Python
+git clone https://github.com/GSaraySWO/AgentsWorkshopMAF
+cd AgentsWorkshopMAF
 ```
 
 Abre la carpeta en VS Code:
