@@ -4,7 +4,20 @@ Workshop de orquestacion de agentes de IA aplicado a un sistema de deteccion de 
 Muestra como combinar un orquestador Python (logica de negocio determinista) con agentes LLM
 y un agente de memoria persistente, sobre dos backends intercambiables.
 
-> Ver `workshop.md` para la guia completa paso a paso del workshop.
+> Nuevo en el workshop? Sigue la guia paso a paso en la carpeta [`workshop/`](workshop/).
+
+## Guia del Workshop
+
+Los modulos estan ordenados para completarse en secuencia. Cada uno incluye instrucciones,
+puntos de discusion y comandos listos para ejecutar.
+
+| # | Modulo | Descripcion |
+|---|--------|-------------|
+| 1 | [Requerimientos](workshop/01-Requerimientos.md) | Instala el software necesario y valida el entorno antes de empezar |
+| 2 | [Exploracion del escenario](workshop/02-Exploracion.md) | Entiende el negocio, explora el codigo con Copilot y haz tu primera ejecucion |
+| 3 | [Pruebas basicas (sin memoria)](workshop/03-PruebasBasicas.md) | Arquitectura tecnica y pruebas de todos los escenarios sin activar la memoria |
+| 4 | [Pruebas con memoria](workshop/04-PruebasConMemoria.md) | Activa el Agente de Memoria y observa como el historial cambia las decisiones |
+| 5 | [Siguientes pasos](workshop/05-SiguientesPasos.md) | Migra de GitHub Models a Azure AI Foundry con trazabilidad y escalado productivo |
 
 ## Arquitectura de agentes
 
@@ -145,7 +158,7 @@ labenv\Scripts\python.exe agents.py transactionA.json  # equivalente
 
 ## Escenarios del workshop
 
-> Ver `workshop.md` para el paso a paso detallado con los puntos de discusion.
+> Ver la guia detallada con puntos de discusion en [workshop/03-PruebasBasicas.md](workshop/03-PruebasBasicas.md).
 
 ### Escenario A — Alto riesgo (dos flags)
 
