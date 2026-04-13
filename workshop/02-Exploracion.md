@@ -53,8 +53,12 @@ Los archivos en la carpeta `data/` representan transacciones reales de clientes 
 
 Abre uno de los archivos para ver su estructura:
 
-```powershell
-Get-Content data\transactionA.json
+```sh
+# Windows (PowerShell)
+Get-Content data/transactionA.json
+
+# Mac / Linux
+cat data/transactionA.json
 ```
 
 ```json
@@ -142,19 +146,27 @@ USE_MEMORY=false
 
 ### Paso 2 — Activa el entorno virtual (si no lo has hecho en esta sesión)
 
-```powershell
+```sh
+# Windows (PowerShell)
 labenv\Scripts\Activate.ps1
+
+# Mac / Linux
+source labenv/bin/activate
 ```
 
 ### Paso 3 — Limpia cualquier historial previo
 
-```powershell
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
+
+# Mac / Linux
+rm -f memory_store.json
 ```
 
 ### Paso 4 — Ejecuta la transacción B
 
-```powershell
+```sh
 python agents.py transactionB
 ```
 

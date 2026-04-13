@@ -156,14 +156,22 @@ USE_MEMORY=false
 
 Activa el entorno virtual si no lo has hecho en esta sesión:
 
-```powershell
+```sh
+# Windows (PowerShell)
 labenv\Scripts\Activate.ps1
+
+# Mac / Linux
+source labenv/bin/activate
 ```
 
 Limpia cualquier historial previo antes de comenzar:
 
-```powershell
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
+
+# Mac / Linux
+rm -f memory_store.json
 ```
 
 ---
@@ -174,7 +182,7 @@ Remove-Item memory_store.json -ErrorAction SilentlyContinue
 
 Ambas reglas se activan: monto elevado Y ubicación desconocida.
 
-```powershell
+```sh
 python agents.py transactionA
 ```
 
@@ -190,7 +198,7 @@ Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
 
 Ninguna regla se activa. Cliente nuevo sin historial.
 
-```powershell
+```sh
 python agents.py transactionB
 ```
 
@@ -204,7 +212,7 @@ Resultado esperado: `✅ TRANSACCION APROBADA`
 
 Solo se activa la regla de monto (> $10,000). La ubicación es segura.
 
-```powershell
+```sh
 python agents.py transactionD
 ```
 
@@ -220,7 +228,7 @@ Resultado esperado: `⚠️ TRANSACCION EN REVISION`
 
 Esta transacción está intencionalmente incompleta para probar la línea de defensa del Orquestador.
 
-```powershell
+```sh
 python agents.py transactionE
 ```
 
@@ -236,7 +244,7 @@ Resultado esperado: un mensaje de error del Orquestador indicando campos faltant
 
 Por sí sola, esta transacción no activa ninguna regla. Con `USE_MEMORY=false`, el historial de C001 se ignora.
 
-```powershell
+```sh
 python agents.py transactionC
 ```
 

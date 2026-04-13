@@ -147,9 +147,23 @@ AZURE_AI_MODEL_DEPLOYMENT_NAME="gpt-4o-mini"
 
 ### Paso 8 — Ejecutar con backend Azure
 
-```powershell
+```sh
+# Windows (PowerShell)
 labenv\Scripts\Activate.ps1
+
+# Mac / Linux
+source labenv/bin/activate
+```
+
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
+
+# Mac / Linux
+rm -f memory_store.json
+```
+
+```sh
 python agents.py transactionA
 ```
 

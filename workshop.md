@@ -94,14 +94,14 @@ GITHUB_ENDPOINT="https://models.github.ai/inference"
 
 Desde la carpeta `Python/`:
 
-```powershell
-labenv\Scripts\python.exe -m pip install -r requirements.txt
+```sh
+pip install -r requirements.txt
 ```
 
 Verificar que el entorno responde:
 
-```powershell
-labenv\Scripts\python.exe agents.py
+```sh
+python agents.py
 ```
 
 Debe mostrar:
@@ -137,19 +137,23 @@ USE_MEMORY=false
 ```
 
 **1.2** Limpiar historial previo:
-```powershell
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
+
+# Mac / Linux
+rm -f memory_store.json
 ```
 
 **1.3** Ejecutar la transacción de alto riesgo:
-```powershell
-labenv\Scripts\python.exe agents.py transactionA
+```sh
+python agents.py transactionA
 ```
 Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO` (por monto + ubicación)
 
 **1.4** Ejecutar la misma transacción C001 con valores normales:
-```powershell
-labenv\Scripts\python.exe agents.py transactionC
+```sh
+python agents.py transactionC
 ```
 Resultado esperado: `✅ TRANSACCION APROBADA`
 
@@ -157,8 +161,8 @@ Resultado esperado: `✅ TRANSACCION APROBADA`
 > el sistema la aprueba sin memoria. ¿Es esto seguro?
 
 **1.5** Probar el caso intermedio (un solo flag):
-```powershell
-labenv\Scripts\python.exe agents.py transactionD
+```sh
+python agents.py transactionD
 ```
 Resultado esperado: `⚠️ TRANSACCION EN REVISION` (solo monto elevado, ubicación normal)
 
@@ -174,13 +178,17 @@ USE_MEMORY=true
 ```
 
 **2.2** Limpiar historial para empezar desde cero:
-```powershell
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
+
+# Mac / Linux
+rm -f memory_store.json
 ```
 
 **2.3** Primera transacción de C001 — alto riesgo:
-```powershell
-labenv\Scripts\python.exe agents.py transactionA
+```sh
+python agents.py transactionA
 ```
 Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
 
@@ -194,8 +202,8 @@ Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
 ```
 
 **2.5** Segunda transacción de C001 — valores normales, pero con historial:
-```powershell
-labenv\Scripts\python.exe agents.py transactionC
+```sh
+python agents.py transactionC
 ```
 Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
 
@@ -209,8 +217,8 @@ Observar en el output:
 > ¿Cuándo podría ser injusto?
 
 **2.6** Ejecutar transactionB (C002, cliente sin historial):
-```powershell
-labenv\Scripts\python.exe agents.py transactionB
+```sh
+python agents.py transactionB
 ```
 Resultado esperado: `✅ TRANSACCION APROBADA`
 (C002 no tiene historial → se evalúa normalmente)
@@ -222,8 +230,8 @@ Resultado esperado: `✅ TRANSACCION APROBADA`
 **Objetivo:** mostrar cómo el Orquestador valida entradas antes de llamar a los LLM.
 
 **3.1** Archivo con campos faltantes:
-```powershell
-labenv\Scripts\python.exe agents.py transactionE
+```sh
+python agents.py transactionE
 ```
 Resultado esperado:
 ```
@@ -232,8 +240,8 @@ Resultado esperado:
 Notar que **los agentes LLM no se invocan** — el Orquestador rechaza la entrada.
 
 **3.2** Archivo que no existe:
-```powershell
-labenv\Scripts\python.exe agents.py transactionZ
+```sh
+python agents.py transactionZ
 ```
 Resultado esperado:
 ```
@@ -241,8 +249,8 @@ Resultado esperado:
 ```
 
 **3.3** Sin argumento:
-```powershell
-labenv\Scripts\python.exe agents.py
+```sh
+python agents.py
 ```
 Resultado esperado: instrucción de uso con lista de archivos disponibles.
 
@@ -286,6 +294,10 @@ PIPELINE = [
 
 ## Reset completo entre sesiones
 
-```powershell
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
+
+# Mac / Linux
+rm -f memory_store.json
 ```

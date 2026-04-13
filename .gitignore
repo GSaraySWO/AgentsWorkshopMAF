@@ -73,3 +73,5 @@ Thumbs.db
 # Output files
 analysis_results.json
 output.txt
+__azur*.json
+AzuriteConfig

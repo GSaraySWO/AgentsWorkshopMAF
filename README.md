@@ -110,7 +110,7 @@ Python/
 
 ## Requisitos
 
-```powershell
+```sh
 pip install -r requirements.txt
 ```
 
@@ -145,15 +145,17 @@ GITHUB_ENDPOINT="https://models.github.ai/inference"
 
 ## Uso
 
-```powershell
-labenv\Scripts\python.exe agents.py <nombre_transaccion>
+Activa el entorno virtual y ejecuta:
+
+```sh
+python agents.py <nombre_transaccion>
 ```
 
 El nombre puede incluir o no la extension `.json`:
 
-```powershell
-labenv\Scripts\python.exe agents.py transactionA
-labenv\Scripts\python.exe agents.py transactionA.json  # equivalente
+```sh
+python agents.py transactionA
+python agents.py transactionA.json  # equivalente
 ```
 
 ## Escenarios del workshop
@@ -162,9 +164,16 @@ labenv\Scripts\python.exe agents.py transactionA.json  # equivalente
 
 ### Escenario A — Alto riesgo (dos flags)
 
-```powershell
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
-labenv\Scripts\python.exe agents.py transactionA
+
+# Mac / Linux
+rm -f memory_store.json
+```
+
+```sh
+python agents.py transactionA
 ```
 
 `transactionA.json`: C001 | $15,000 | Desconocido
@@ -175,8 +184,8 @@ Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO` (monto + ubicacion)
 
 ### Escenario B — Transaccion normal, cliente nuevo
 
-```powershell
-labenv\Scripts\python.exe agents.py transactionB
+```sh
+python agents.py transactionB
 ```
 
 `transactionB.json`: C002 | $800 | Madrid
@@ -189,8 +198,8 @@ Resultado esperado: `✅ TRANSACCION APROBADA`
 
 Primero ejecutar el Escenario A para registrar C001. Luego:
 
-```powershell
-labenv\Scripts\python.exe agents.py transactionC
+```sh
+python agents.py transactionC
 ```
 
 `transactionC.json`: C001 | $500 | Barcelona
@@ -202,8 +211,8 @@ Resultado con `USE_MEMORY=false`: `✅ TRANSACCION APROBADA` (evaluada de forma 
 
 ### Escenario D — Un solo flag: monto elevado, ubicacion normal
 
-```powershell
-labenv\Scripts\python.exe agents.py transactionD
+```sh
+python agents.py transactionD
 ```
 
 `transactionD.json`: C003 | $12,000 | Madrid
@@ -214,8 +223,8 @@ Resultado esperado: `⚠️ TRANSACCION EN REVISION`
 
 ### Escenario E — Archivo con campos faltantes
 
-```powershell
-labenv\Scripts\python.exe agents.py transactionE
+```sh
+python agents.py transactionE
 ```
 
 Resultado esperado: error claro del Orquestador, sin llamar a los LLM.
@@ -224,14 +233,18 @@ Resultado esperado: error claro del Orquestador, sin llamar a los LLM.
 
 ### Reset entre escenarios
 
-```powershell
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
+
+# Mac / Linux
+rm -f memory_store.json
 ```
 
 ## Troubleshooting
 
 - `Missing required environment variables`: revisar `.env` segun el backend elegido.
-- `ModuleNotFoundError: truststore`: usar `labenv\Scripts\python.exe` en lugar de `python`.
+- `ModuleNotFoundError: truststore`: asegúrate de que el entorno virtual esté activo (`source labenv/bin/activate` en Mac/Linux o `labenv\Scripts\Activate.ps1` en Windows).
 - Error de red a Azure: validar conectividad y endpoint de Foundry.
 - Error de autenticacion GitHub: validar `GITHUB_TOKEN` y permisos del token.
 - `Unknown model`: usar formato `openai/gpt-4o-mini` en `GITHUB_MODEL`.

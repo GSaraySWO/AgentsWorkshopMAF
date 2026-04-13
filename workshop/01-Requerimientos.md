@@ -12,7 +12,7 @@ Necesitas Git para clonar el repositorio del workshop.
 
 Verifica que está instalado:
 
-```powershell
+```sh
 git --version
 ```
 
@@ -26,7 +26,7 @@ Si no está instalado, descárgalo desde [git-scm.com/downloads](https://git-scm
 
 Verifica la versión:
 
-```powershell
+```sh
 python --version
 ```
 
@@ -103,16 +103,16 @@ El token permite que el código del workshop se autentique con GitHub Models par
 
 ## 5. Clonar el repositorio
 
-Abre una terminal PowerShell y ejecuta:
+Abre una terminal y ejecuta:
 
-```powershell
+```sh
 git clone https://github.com/MicrosoftLearning/mslearn-ai-agents.git
-cd mslearn-ai-agents\Labfiles\05-agent-orchestration\Python
+cd mslearn-ai-agents/Labfiles/05-agent-orchestration/Python
 ```
 
 Abre la carpeta en VS Code:
 
-```powershell
+```sh
 code .
 ```
 
@@ -122,23 +122,27 @@ code .
 
 Crea un entorno virtual de Python llamado `labenv` dentro de la carpeta `Python/`:
 
-```powershell
+```sh
 python -m venv labenv
 ```
 
 Activa el entorno:
 
-```powershell
+```sh
+# Windows (PowerShell)
 labenv\Scripts\Activate.ps1
+
+# Mac / Linux
+source labenv/bin/activate
 ```
 
 Verifica que el prompt de tu terminal cambia y muestra `(labenv)` al inicio. Esto indica que el entorno está activo.
 
-> **Importante:** Debes activar el entorno cada vez que abras una nueva terminal para trabajar con este proyecto. El comando es siempre `labenv\Scripts\Activate.ps1` desde la carpeta `Python/`.
+> **Importante:** Debes activar el entorno cada vez que abras una nueva terminal para trabajar con este proyecto.
 
 Instala los paquetes necesarios:
 
-```powershell
+```sh
 pip install -r requirements.txt
 ```
 
@@ -160,8 +164,12 @@ El archivo `.env` contiene las credenciales y opciones de configuración del wor
 
 ### Copiar la plantilla
 
-```powershell
+```sh
+# Windows (PowerShell)
 Copy-Item .env.example .env
+
+# Mac / Linux
+cp .env.example .env
 ```
 
 ### Editar el archivo `.env`
@@ -199,7 +207,7 @@ GITHUB_ENDPOINT="https://models.github.ai/inference"
 
 Ejecuta el siguiente comando sin argumentos para confirmar que todo está configurado correctamente (con el entorno activado):
 
-```powershell
+```sh
 python agents.py
 ```
 
@@ -221,7 +229,7 @@ Si aparece este mensaje, el entorno está listo. Continúa con [02-Exploracion.m
 |---|---|---|
 | Git | `git --version` | `git version 2.x.x` |
 | Python | `python --version` | `Python 3.11.x` o superior |
-| Entorno activado | `labenv\Scripts\Activate.ps1` → prompt muestra `(labenv)` | Prefijo `(labenv)` visible en el terminal |
+| Entorno activado | Windows: `labenv\Scripts\Activate.ps1` / Mac·Linux: `source labenv/bin/activate` | Prefijo `(labenv)` visible en el terminal |
 | Dependencias | `pip list` | `openai`, `agent-framework`, `python-dotenv` visibles |
 | `.env` | Revisar que `GITHUB_TOKEN` no sea `<pega aquí...>` | Token real asignado |
 | Entorno completo | `python agents.py` | Mensaje de uso con lista de transacciones |

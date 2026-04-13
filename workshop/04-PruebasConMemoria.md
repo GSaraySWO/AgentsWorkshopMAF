@@ -101,21 +101,29 @@ Este es el "momento aha" del workshop: la misma transacción produce resultados 
 
 Activa el entorno virtual si no lo has hecho en esta sesión:
 
-```powershell
+```sh
+# Windows (PowerShell)
 labenv\Scripts\Activate.ps1
+
+# Mac / Linux
+source labenv/bin/activate
 ```
 
 Empieza desde cero para que el resultado sea reproducible:
 
-```powershell
+```sh
+# Windows (PowerShell)
 Remove-Item memory_store.json -ErrorAction SilentlyContinue
+
+# Mac / Linux
+rm -f memory_store.json
 ```
 
 ---
 
 ### Paso 2 — Primera transacción de C001 (alto riesgo)
 
-```powershell
+```sh
 python agents.py transactionA
 ```
 
@@ -129,8 +137,12 @@ Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
 
 Después de la ejecución, abre `memory_store.json`:
 
-```powershell
+```sh
+# Windows (PowerShell)
 Get-Content memory_store.json
+
+# Mac / Linux
+cat memory_store.json
 ```
 
 Debes ver algo como:
@@ -149,7 +161,7 @@ La palabra `ALERTA` está presente en el resultado. Cuando el Orquestador lea es
 
 ### Paso 4 — Segunda transacción de C001 (valores normales, pero con historial)
 
-```powershell
+```sh
 python agents.py transactionC
 ```
 
@@ -176,7 +188,7 @@ El Orquestador detectó la alerta previa de C001, elevó el riesgo a `Crítico` 
 
 Ejecuta una transacción de un cliente que no haya sido bloqueado:
 
-```powershell
+```sh
 python agents.py transactionB
 ```
 
