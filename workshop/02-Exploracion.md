@@ -73,10 +73,10 @@ Antes de ejecutar el código, vamos a entender cómo está estructurado usando G
 
 ### Ejercicio 1 — Entender el punto de entrada
 
-En el panel de chat de Copilot, escribe:
+En el panel de chat de Copilot, selecciona el modo Ask y escribe:
 
 ```
-@workspace ¿Qué hace el archivo agents.py? ¿Cuál es su responsabilidad principal en el sistema?
+¿Qué hace el archivo agents.py? ¿Cuál es su responsabilidad principal en el sistema?
 ```
 
 Copilot debería explicar que `agents.py` es el **Orquestador**: valida la transacción de entrada, consulta el historial del cliente y decide el flujo antes de llamar a los agentes de IA.
@@ -102,10 +102,10 @@ Copilot explicará que esta función:
 
 ### Ejercicio 3 — Entender la extensibilidad del pipeline
 
-En el panel de chat de Copilot, escribe:
+En el panel de chat de Copilot, en modo Ask, escribe:
 
 ```
-@workspace ¿Qué es la lista PIPELINE en pipeline.py y cómo se agregaría un nuevo agente al flujo?
+¿Qué es la lista PIPELINE en pipeline.py y cómo se agregaría un nuevo agente al flujo?
 ```
 
 Copilot mostrará que `PIPELINE` es una lista ordenada de `AgentSpec`. Para agregar un agente nuevo solo se necesita:
@@ -122,7 +122,7 @@ Copilot mostrará que `PIPELINE` es una lista ordenada de `AgentSpec`. Para agre
 En el panel de chat de Copilot, escribe:
 
 ```
-@workspace ¿Qué diferencia hay entre backends/azure_backend.py y backends/github_backend.py? ¿Cómo logran el mismo resultado?
+¿Qué diferencia hay entre backends/azure_backend.py y backends/github_backend.py? ¿Cómo logran el mismo resultado?
 ```
 
 Copilot explicará que:
