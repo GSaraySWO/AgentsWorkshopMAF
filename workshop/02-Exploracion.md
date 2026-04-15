@@ -69,7 +69,7 @@ cat data/transactionA.json
 
 ## Exploración del código con GitHub Copilot
 
-Antes de ejecutar el código, vamos a entender cómo está estructurado usando GitHub Copilot como guía. Estos ejercicios usan el **panel de Chat** de Copilot (`Ctrl+Alt+I` o el ícono de chat en la barra lateral).
+Antes de ejecutar el código, vamos a entender cómo está estructurado usando GitHub Copilot como guía. Estos ejercicios usan el **panel de Chat** de Copilot (`Ctrl+Alt+I` o el ícono de chat en la barra superior).
 
 ### Ejercicio 1 — Entender el punto de entrada
 
@@ -170,19 +170,67 @@ rm -f memory_store.json
 python agents.py transactionB
 ```
 
-La transacción B es: **C002 | $800 | Madrid** — sin flags de riesgo, cliente sin historial.
+`transactionB.json` contiene **5 transacciones** de distintos clientes, diseñadas para cubrir varios escenarios de riesgo en una sola ejecución:
+
+| # | Cliente | Monto | Ubicación | Escenario |
+|---|---------|-------|-----------|-----------|
+| 1 | C005 | $2,500 | Desconocido | Un flag (riesgo geográfico) → revisión |
+| 2 | C002 | $300 | Barcelona | Sin flags → aprobada |
+| 3 | C001 | $13,000 | Lista Negra | Dos flags (monto + geografía) → bloqueo |
+| 4 | C004 | $1,500 | Madrid | Sin flags → aprobada |
+| 5 | C003 | $8,000 | Valencia | Sin flags → aprobada |
 
 Resultado esperado:
 
 ```
-[Orchestrator] Loaded transaction: {'clientId': 'C002', 'amount': 800, 'location': 'Madrid'}
-[Orchestrator] Memory disabled — skipping history lookup.
-[analyzer] ...
-[report] ...
+[Orchestrator] Memory: DISABLED (USE_MEMORY in .env)
+[Orchestrator] Loading transactionB.json...
+[Orchestrator] 5 transaction(s) loaded.
+
+============================================================
+[Orchestrator] Transaction 1/5
+[Orchestrator] Client: C005
+[Memory Agent] Memory disabled (USE_MEMORY=false). Skipping history lookup.
+...
+03 [report]
+⚠️ TRANSACCION EN REVISION
+
+============================================================
+[Orchestrator] Transaction 2/5
+[Orchestrator] Client: C002
+...
+03 [report]
 ✅ TRANSACCION APROBADA
+
+============================================================
+[Orchestrator] Transaction 3/5
+[Orchestrator] Client: C001
+...
+03 [report]
+🚨 ALERTA DE BLOQUEO INMEDIATO
+
+============================================================
+[Orchestrator] Transaction 4/5
+[Orchestrator] Client: C004
+...
+03 [report]
+✅ TRANSACCION APROBADA
+
+============================================================
+[Orchestrator] Transaction 5/5
+[Orchestrator] Client: C003
+...
+03 [report]
+✅ TRANSACCION APROBADA
+
+  1  C005    $2,500.00 USD  Desconocido  ⚠️ TRANSACCION EN REVISION
+  2  C002      $300.00 USD  Barcelona    ✅ TRANSACCION APROBADA
+  3  C001   $13,000.00 USD  Lista Negra  🚨 ALERTA DE BLOQUEO INMEDIATO
+  4  C004    $1,500.00 USD  Madrid       ✅ TRANSACCION APROBADA
+  5  C003    $8,000.00 USD  Valencia     ✅ TRANSACCION APROBADA
 ```
 
-> La salida exacta del texto puede variar entre ejecuciones porque es generada por el LLM, pero la decisión final (`✅ TRANSACCION APROBADA`) debe ser consistente.
+> La salida exacta del texto de cada reporte puede variar entre ejecuciones porque es generada por el LLM, pero las decisiones finales (los íconos y etiquetas) deben ser consistentes.
 
 ---
 
@@ -193,6 +241,6 @@ Al finalizar este módulo debes haber:
 - [x] Entendido el escenario de negocio del banco y sus reglas de riesgo.
 - [x] Identificado para qué sirve cada transacción de prueba.
 - [x] Usado GitHub Copilot para explorar el Orquestador, el pipeline y los backends.
-- [x] Ejecutado `transactionB` y obtenido `✅ TRANSACCION APROBADA` como primera ejecución exitosa.
+- [x] Ejecutado `transactionB` (5 transacciones) y verificado las tres decisiones posibles: ✅ aprobada, ⚠️ en revisión y 🚨 bloqueo inmediato.
 
 Continúa con [03-PruebasBasicas.md](03-PruebasBasicas.md) para explorar la arquitectura técnica en detalle y probar todos los escenarios sin memoria.

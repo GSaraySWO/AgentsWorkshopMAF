@@ -92,10 +92,11 @@ El token permite que el código del workshop se autentique con GitHub Models par
    | **Expiration** | 7 days |
    | **Resource owner** | Tu usuario (por defecto) |
    | **Repository access** | Public Repositories (read-only) |
-   | **Permissions** | Sin permisos adicionales requeridos |
+   | **Permissions** | + Add Permissions -> Buscar y seleccionar Models |
 
 7. Haz clic en **Generate token**.
-8. **Copia el token inmediatamente** — GitHub solo lo muestra una vez.
+8. Si sale una advertencia, da clic en **Generate token**.
+9. **Copia el token inmediatamente** — GitHub solo lo muestra una vez.
 
 > Guarda el token en un lugar seguro mientras dure el workshop (por ejemplo, un bloc de notas temporal). No lo compartas ni lo subas a ningún repositorio.
 
