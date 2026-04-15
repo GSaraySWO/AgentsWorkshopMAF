@@ -133,13 +133,13 @@ Las 5 transacciones se procesan en orden. El Agente de Memoria escribe el result
 |---|---|---|---|---|---|---|
 | 1 | C002 | $800 | Madrid | ✅ | ✅ | Sin flags, sin historial |
 | 2 | C001 | $15,000 | Desconocido | 🚨 | 🚨 | Doble riesgo → historial guardado |
-| 3 | C005 | $3,000 | Lista Negra | ⚠️ | ⚠️ | Blacklist → historial guardado |
+| 3 | C005 | $3,000 | Lista Negra | 🚨 | 🚨 | Blacklist → Crítico → historial guardado |
 | 4 | C001 | $500 | Barcelona | ✅ | **🚨** | ← escalación: historial de tx#2 |
 | 5 | C005 | $1,200 | Desconocido | ⚠️ | **🚨** | ← escalación: historial de tx#3 |
 
 Los dos pares de escalación en una sola ejecución:
-- **C001:** tx#2 (🚨 ALERTA) → tx#4 ($500 Barcelona → 🚨 ALERTA)
-- **C005:** tx#3 (⚠️ REVISION) → tx#5 ($1,200 Desconocido → 🚨 ALERTA)
+- **C001:** tx#2 (🚨 ALERTA, doble riesgo) → tx#4 ($500 Barcelona → 🚨 ALERTA por historial)
+- **C005:** tx#3 (🚨 ALERTA, Lista Negra → Crítico) → tx#5 ($1,200 Desconocido → 🚨 ALERTA por historial)
 
 ---
 
@@ -215,7 +215,7 @@ Comportamiento esperado:
 | # | Cliente | Valores | `USE_MEMORY=false` | `USE_MEMORY=true` | Razón |
 |---|---|---|---|---|---|
 | 4 | C001 | $500, Barcelona | ✅ APROBADA | 🚨 ALERTA | tx#2 (🚨) guardado antes de tx#4 |
-| 5 | C005 | $1,200, Desconocido | ⚠️ REVISION | 🚨 ALERTA | tx#3 (⚠️) guardado antes de tx#5 |
+| 5 | C005 | $1,200, Desconocido | ⚠️ REVISION | 🚨 ALERTA | tx#3 (🚨) guardado antes de tx#5 |
 
 > **Para reflexionar:** Las dos transacciones escaladas son normales por sus propios méritos. La memoria es la única razón del bloqueo.
 >

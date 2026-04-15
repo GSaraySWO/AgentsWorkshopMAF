@@ -98,9 +98,10 @@ Funciones clave:
 
 Es un `AgentSpec`: solo contiene un nombre y un system prompt. No tiene código Python propio. Toda la lógica vive en las instrucciones que se pasan al LLM. El LLM evalúa:
 
-- Si `amount > 10000` → flag `Sospechoso por Monto`
-- Si `location` es `"Desconocido"` o `"Lista Negra"` → flag `Riesgo Geográfico`
-- Si el contexto contiene `"CRITICAL RISK"` → nivel de riesgo forzado a `Crítico`
+- Si `amount > 10000` → flag `Sospechoso por Monto` → nivel `Sospechoso`
+- Si `location` es `"Desconocido"` → flag `Riesgo Geográfico` → nivel `Sospechoso`
+- Si `location` es `"Lista Negra"` → flag `Riesgo Geográfico` → nivel `Crítico`
+- Si el contexto contiene `"CRITICAL RISK"` → nivel de riesgo forzado a `Crítico` (independientemente de los valores)
 
 Salida: texto estructurado con los flags detectados y el nivel de riesgo asignado.
 
@@ -219,9 +220,9 @@ Resultados esperados para `transactionA` (sin memoria):
 |---|---|---|---|---|---|
 | 1 | C002 | $800 | Madrid | Ninguno | ✅ TRANSACCION APROBADA |
 | 2 | C001 | $15,000 | Desconocido | Monto + Geográfico | 🚨 ALERTA DE BLOQUEO INMEDIATO |
-| 3 | C005 | $3,000 | Lista Negra | Geográfico (blacklist) | ⚠️ TRANSACCION EN REVISION |
+| 3 | C005 | $3,000 | Lista Negra | Geográfico (blacklist → Crítico) | 🚨 ALERTA DE BLOQUEO INMEDIATO |
 | 4 | C001 | $500 | Barcelona | Ninguno | ✅ TRANSACCION APROBADA |
-| 5 | C005 | $1,200 | Desconocido | Geográfico | ⚠️ TRANSACCION EN REVISION |
+| 5 | C005 | $1,200 | Desconocido | Geográfico (Desconocido → Sospechoso) | ⚠️ TRANSACCION EN REVISION |
 
 > **Observación clave:** La transacción #4 de C001 ($500, Barcelona) se aprueba sin problema. Con memoria activa, esto cambia drásticamente — lo verás en [04-PruebasConMemoria.md](04-PruebasConMemoria.md).
 
@@ -261,12 +262,12 @@ python agents.py transactionB
 |---|---|---|
 | Doble riesgo (monto + geo) | C001, $15,000, Desconocido | 🚨 ALERTA DE BLOQUEO INMEDIATO |
 | Un solo flag: monto alto | C003, $12,000, Madrid | ⚠️ TRANSACCION EN REVISION |
-| Un solo flag: blacklist geográfico | C005, $3,000, Lista Negra | ⚠️ TRANSACCION EN REVISION |
+| Un solo flag: blacklist geográfico | C005, $3,000, Lista Negra | 🚨 ALERTA DE BLOQUEO INMEDIATO |
 | Un solo flag: ubicación desconocida | C004, $9,500, Desconocido | ⚠️ TRANSACCION EN REVISION |
 | Cliente nuevo, sin flags | C004, $200, Valencia | ✅ TRANSACCION APROBADA |
 | Valores normales, sin historial | C001, $500, Barcelona | ✅ TRANSACCION APROBADA |
-| Validación: campos faltantes | `transactionE` tx#1–7 | ❌ Error (sin LLM) |
-| Lote continúa tras errores | `transactionE` tx#8–10 | Procesadas normalmente |
+| Validación: campos faltantes | `transactionE` tx#1–3 | ❌ Error (sin LLM) |
+| Lote continúa tras errores | `transactionE` tx#4–5 | Procesadas normalmente |
 
 ---
 

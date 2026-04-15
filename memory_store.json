@@ -1,17 +1,14 @@
 {
-  "C005": {
-    "last_result": "⚠️ TRANSACCION EN REVISION: La transacción presenta un riesgo geográfico debido a la ubicación desconocida del cliente."
-  },
   "C002": {
     "last_result": "✅ TRANSACCION APROBADA"
   },
   "C001": {
-    "last_result": "✅ TRANSACCION APROBADA"
+    "last_result": "🚨 ALERTA DE BLOQUEO INMEDIATO: La transacción presenta un riesgo crítico debido a múltiples banderas activadas, incluyendo un monto elevado y una ubicación en la lista negra, además de un historial sospechoso del cliente."
+  },
+  "C005": {
+    "last_result": "🚨 ALERTA DE BLOQUEO INMEDIATO: La transacción presenta un riesgo crítico debido a un historial previo sospechoso del cliente."
   },
   "C004": {
-    "last_result": "✅ TRANSACCION APROBADA"
-  },
-  "C003": {
     "last_result": "✅ TRANSACCION APROBADA"
   }
 }
