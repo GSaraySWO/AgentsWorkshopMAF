@@ -88,10 +88,11 @@ Funciones clave:
 
 | Función | Qué hace |
 |---|---|
-| `load_transaction(path)` | Valida que el JSON existe y tiene los campos `clientId`, `amount`, `location` |
+| `load_transaction(path)` | Carga el archivo JSON y retorna la lista de transacciones; aborta si el archivo no existe o el JSON es inválido |
+| `validate_transaction(tx)` | Verifica que la transacción tenga `clientId`, `amount` y `location`; retorna el conjunto de campos faltantes (vacío = válida) |
 | `build_context(transaction)` | Construye el string de contexto; si hay historial sospechoso, antepone `"⚠️ CRITICAL RISK"` |
 | `_is_suspicious_history(result)` | Escanea el resultado previo buscando palabras clave: `Sospechoso`, `Critico`, `ALERTA`, `REVISION` |
-| `main()` | Punto de entrada: carga, enriquece, ejecuta el pipeline, imprime y persiste el resultado |
+| `main()` | Punto de entrada: carga el lote, itera cada transacción, valida, enriquece, ejecuta el pipeline, imprime y persiste el resultado de cada una |
 
 ### Agente Analizador — `analyzer_agent.py`
 
@@ -176,93 +177,96 @@ rm -f memory_store.json
 
 ---
 
-### Prueba 1 — Dos flags activos: bloqueo inmediato
+### Formato de los archivos de transacciones
 
-**transactionA:** C001 | $15,000 | Desconocido
+Cada archivo en `data/` es un **array JSON** con múltiples transacciones. Al ejecutar `python agents.py transactionA`, el Orquestador carga las 5 transacciones del archivo y las procesa **de forma secuencial**: valida cada una individualmente, ejecuta el pipeline completo para cada transacción válida, y persiste el resultado en memoria antes de pasar a la siguiente.
 
-Ambas reglas se activan: monto elevado Y ubicación desconocida.
+```json
+[
+  { "clientId": "C002", "amount": 800,   "location": "Madrid"      },
+  { "clientId": "C001", "amount": 15000, "location": "Desconocido" },
+  ...
+]
+```
+
+Si una transacción tiene campos faltantes, el Orquestador la describe como inválida y **continúa con la siguiente** — el lote no se interrumpe.
+
+---
+
+### Perfiles de clientes
+
+| Cliente | Nombre | Perfil |
+|---|---|---|
+| C001 | Victor Medina | Historial de fraude confirmado |
+| C002 | Ana García | Cliente legítima habitual |
+| C003 | Roberto Sanz | Empresario, montos altos legítimos |
+| C004 | Laura Torres | Cliente nueva, sin historial |
+| C005 | Carlos Méndez | Viajero frecuente, ubicaciones inusuales |
+
+---
+
+### Prueba principal — Lote completo sin memoria
 
 ```sh
 python agents.py transactionA
 ```
 
-Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
+El Orquestador procesa 5 transacciones en secuencia. Con `USE_MEMORY=false`, cada una se evalúa de forma completamente aislada — ningún resultado anterior influye sobre las siguientes.
 
-> El Analizador detecta dos flags (`Sospechoso por Monto` + `Riesgo Geográfico`) y asigna nivel `Crítico`. El Generador de Reporte emite el bloqueo.
+Resultados esperados para `transactionA` (sin memoria):
 
----
+| # | Cliente | Monto | Ubicación | Flags activos | Resultado esperado |
+|---|---|---|---|---|---|
+| 1 | C002 | $800 | Madrid | Ninguno | ✅ TRANSACCION APROBADA |
+| 2 | C001 | $15,000 | Desconocido | Monto + Geográfico | 🚨 ALERTA DE BLOQUEO INMEDIATO |
+| 3 | C005 | $3,000 | Lista Negra | Geográfico (blacklist) | ⚠️ TRANSACCION EN REVISION |
+| 4 | C001 | $500 | Barcelona | Ninguno | ✅ TRANSACCION APROBADA |
+| 5 | C005 | $1,200 | Desconocido | Geográfico | ⚠️ TRANSACCION EN REVISION |
 
-### Prueba 2 — Sin flags: transacción aprobada
-
-**transactionB:** C002 | $800 | Madrid
-
-Ninguna regla se activa. Cliente nuevo sin historial.
-
-```sh
-python agents.py transactionB
-```
-
-Resultado esperado: `✅ TRANSACCION APROBADA`
+> **Observación clave:** La transacción #4 de C001 ($500, Barcelona) se aprueba sin problema. Con memoria activa, esto cambia drásticamente — lo verás en [04-PruebasConMemoria.md](04-PruebasConMemoria.md).
 
 ---
 
-### Prueba 3 — Un solo flag: en revisión
-
-**transactionD:** C003 | $12,000 | Madrid
-
-Solo se activa la regla de monto (> $10,000). La ubicación es segura.
-
-```sh
-python agents.py transactionD
-```
-
-Resultado esperado: `⚠️ TRANSACCION EN REVISION`
-
-> Un solo flag produce nivel `Sospechoso`, no `Crítico`. El sistema no bloquea, sino que envía a revisión manual.
-
----
-
-### Prueba 4 — Validación del Orquestador: transacción incompleta
-
-**transactionE:** C003 | *(sin monto ni ubicación)*
-
-Esta transacción está intencionalmente incompleta para probar la línea de defensa del Orquestador.
+### Prueba de validación — Campos faltantes
 
 ```sh
 python agents.py transactionE
 ```
 
-Resultado esperado: un mensaje de error del Orquestador indicando campos faltantes. **El LLM nunca se invoca.**
+`transactionE` contiene 3 transacciones con campos faltantes en distintas combinaciones, seguidas de 2 transacciones válidas. El Orquestador valida cada una individualmente, reporta el error y **continúa con la siguiente** sin llamar a ningún LLM.
 
-> Este es el patrón **fail-fast**: antes de gastar tokens o crear latencia, el Orquestador verifica que los datos sean válidos.
+Comportamiento esperado:
+- Transacciones 1–3: mensaje de error con los campos faltantes, sin invocar el pipeline.
+- Transacciones 4–5: procesadas normalmente (el lote no se interrumpe por los errores previos).
+
+> Este es el patrón **fail-fast por transacción**: el Orquestador protege el sistema antes de gastar tokens o tiempo de inferencia, pero no aborta el lote completo por un subconjunto inválido.
 
 ---
 
-### Prueba 5 — Sin flags pero cliente con historial (sin memoria activa)
-
-**transactionC:** C001 | $500 | Barcelona
-
-Por sí sola, esta transacción no activa ninguna regla. Con `USE_MEMORY=false`, el historial de C001 se ignora.
+### Prueba del archivo B — Día 2 de operaciones
 
 ```sh
-python agents.py transactionC
+python agents.py transactionB
 ```
 
-Resultado esperado: `✅ TRANSACCION APROBADA`
+`transactionB` incluye patrones distintos: C001 aparece con monto alto y blacklist (tx#3 → 🚨), C002 con transacciones normales (✅).
 
-> **Guarda este resultado**. En la sección [04-PruebasConMemoria.md](04-PruebasConMemoria.md) ejecutarás exactamente el mismo comando, pero con memoria activada, y el resultado será completamente diferente.
+> Guarda esta observación para la sección de memoria: en transactionB, C001 vuelve a ser bloqueado. Si ya tenía historial de transactionA, ¿cambia algo el comportamiento?
 
 ---
 
-## Resumen de resultados esperados
+## Resumen de escenarios cubiertos
 
-| Transacción | Flags activos | Resultado esperado |
+| Escenario | Ejemplo | Resultado esperado |
 |---|---|---|
-| A — C001, $15,000, Desconocido | Monto + Geográfico | 🚨 ALERTA DE BLOQUEO INMEDIATO |
-| B — C002, $800, Madrid | Ninguno | ✅ TRANSACCION APROBADA |
-| D — C003, $12,000, Madrid | Monto | ⚠️ TRANSACCION EN REVISION |
-| E — C003, incompleta | N/A | ❌ Error de validación (sin LLM) |
-| C — C001, $500, Barcelona | Ninguno | ✅ TRANSACCION APROBADA |
+| Doble riesgo (monto + geo) | C001, $15,000, Desconocido | 🚨 ALERTA DE BLOQUEO INMEDIATO |
+| Un solo flag: monto alto | C003, $12,000, Madrid | ⚠️ TRANSACCION EN REVISION |
+| Un solo flag: blacklist geográfico | C005, $3,000, Lista Negra | ⚠️ TRANSACCION EN REVISION |
+| Un solo flag: ubicación desconocida | C004, $9,500, Desconocido | ⚠️ TRANSACCION EN REVISION |
+| Cliente nuevo, sin flags | C004, $200, Valencia | ✅ TRANSACCION APROBADA |
+| Valores normales, sin historial | C001, $500, Barcelona | ✅ TRANSACCION APROBADA |
+| Validación: campos faltantes | `transactionE` tx#1–7 | ❌ Error (sin LLM) |
+| Lote continúa tras errores | `transactionE` tx#8–10 | Procesadas normalmente |
 
 ---
 
@@ -273,6 +277,7 @@ Al finalizar este módulo debes haber:
 - [x] Entendido la arquitectura de cuatro componentes y el rol de cada uno.
 - [x] Comprendido qué es el Microsoft Agent Framework y cómo se usa en este proyecto.
 - [x] Diferenciado entre agentes deterministas y agentes LLM.
-- [x] Ejecutado las cinco pruebas y verificado los resultados esperados.
+- [x] Ejecutado `transactionA` y verificado los 5 resultados esperados sin memoria.
+- [x] Ejecutado `transactionE` y observado cómo el lote continúa tras errores de validación.
 
-Continúa con [04-PruebasConMemoria.md](04-PruebasConMemoria.md) para activar la memoria y ver cómo el historial de un cliente cambia las decisiones del sistema.
+Continúa con [04-PruebasConMemoria.md](04-PruebasConMemoria.md) para activar la memoria y ver cómo el historial de un cliente cambia las decisiones del sistema — incluso dentro del mismo lote.

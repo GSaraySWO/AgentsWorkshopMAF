@@ -115,21 +115,31 @@ Debe mostrar:
 
 ## Transacciones de ejemplo
 
-Los archivos en `data/` cubren todos los escenarios del workshop:
+Cada archivo en `data/` es un **array JSON de 5 transacciones** con los clientes mezclados. El Orquestador las procesa de forma secuencial y actualiza la memoria despues de cada una.
 
-| Archivo | Cliente | Monto | Ubicación | Propósito |
-|---|---|---|---|---|
-| `transactionA` | C001 | $15,000 | Desconocido | Dos flags de riesgo → Crítico |
-| `transactionB` | C002 | $800 | Madrid | Sin flags → Normal |
-| `transactionC` | C001 | $500 | Barcelona | Normal, pero C001 tiene historial |
-| `transactionD` | C003 | $12,000 | Madrid | Un flag (monto) → Sospechoso |
-| `transactionE` | C003 | *(incompleto)* | — | Validación del Orquestador |
+| Archivo | Clientes | Propósito principal |
+|---|---|---|
+| `transactionA` | C001, C002, C005 | Dia 1: incluye 2 pares de escalacion con memoria |
+| `transactionB` | C001–C005 | Dia 2: distintos montos y ubicaciones |
+| `transactionC` | C001–C005 | Fin de semana: enfasis en geo-riesgo y blacklist |
+| `transactionD` | C001–C005 | Lunes corporativo: montos extremos y doble riesgo |
+| `transactionE` | C001, C003, C004 | 3 invalidas + 2 validas: validacion del Orquestador |
+
+**Perfiles de los 5 clientes:**
+
+| ID | Nombre | Perfil |
+|---|---|---|
+| C001 | Victor Medina | Historial de fraude confirmado |
+| C002 | Ana García | Cliente legítima habitual |
+| C003 | Roberto Sanz | Empresario, montos altos legítimos |
+| C004 | Laura Torres | Cliente nueva, sin historial |
+| C005 | Carlos Méndez | Viajero frecuente, ubicaciones inusuales |
 
 ---
 
 ## Escenario 1 — Sin memoria (`USE_MEMORY=false`)
 
-**Objetivo:** mostrar que sin memoria, cada transacción se evalúa de forma aislada.
+**Objetivo:** mostrar que sin memoria, cada transacción se evalúa de forma aislada — incluso dentro del mismo lote.
 
 **1.1** En `.env`, cambiar:
 ```ini
@@ -145,32 +155,29 @@ Remove-Item memory_store.json -ErrorAction SilentlyContinue
 rm -f memory_store.json
 ```
 
-**1.3** Ejecutar la transacción de alto riesgo:
+**1.3** Ejecutar el lote completo:
 ```sh
 python agents.py transactionA
 ```
-Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO` (por monto + ubicación)
+Resultado: 5 transacciones procesadas en secuencia. Resultados representativos:
+- tx#1 (C002, $800, Madrid) → `✅ TRANSACCION APROBADA`
+- tx#2 (C001, $15,000, Desconocido) → `🚨 ALERTA DE BLOQUEO INMEDIATO` (monto + ubicación)
+- tx#3 (C005, $3,000, Lista Negra) → `⚠️ TRANSACCION EN REVISION` (blacklist)
+- tx#4 (C001, $500, Barcelona) → `✅ TRANSACCION APROBADA` (sin flags)
 
-**1.4** Ejecutar la misma transacción C001 con valores normales:
+> **Punto de discusión:** C001 fue bloqueado en tx#2 y aprobado en tx#4 — dentro del mismo archivo. Sin memoria, el sistema no recuerda. ¿Es esto seguro?
+
+**1.4** Probar el caso de validación:
 ```sh
-python agents.py transactionC
+python agents.py transactionE
 ```
-Resultado esperado: `✅ TRANSACCION APROBADA`
-
-> **Punto de discusión:** Aunque C001 acaba de tener una transacción bloqueada,
-> el sistema la aprueba sin memoria. ¿Es esto seguro?
-
-**1.5** Probar el caso intermedio (un solo flag):
-```sh
-python agents.py transactionD
-```
-Resultado esperado: `⚠️ TRANSACCION EN REVISION` (solo monto elevado, ubicación normal)
+Resultado esperado: 3 errores de validación (sin invocar LLM) + 2 transacciones válidas procesadas normalmente.
 
 ---
 
 ## Escenario 2 — Con memoria (`USE_MEMORY=true`)
 
-**Objetivo:** mostrar cómo el historial del cliente influye en decisiones futuras.
+**Objetivo:** mostrar cómo el historial del cliente influye en decisiones futuras — incluso dentro del mismo lote.
 
 **2.1** En `.env`, cambiar:
 ```ini
@@ -186,67 +193,60 @@ Remove-Item memory_store.json -ErrorAction SilentlyContinue
 rm -f memory_store.json
 ```
 
-**2.3** Primera transacción de C001 — alto riesgo:
+**2.3** Ejecutar el mismo lote que en el Escenario 1:
 ```sh
 python agents.py transactionA
 ```
-Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
 
-**2.4** Abrir `memory_store.json` y mostrar el historial guardado:
-```json
-{
-  "C001": {
-    "last_result": "🚨 ALERTA DE BLOQUEO INMEDIATO: ..."
-  }
-}
-```
+El Agente de Memoria guarda el resultado de cada transacción antes de pasar a la siguiente. Señalar los 2 pares de escalación:
 
-**2.5** Segunda transacción de C001 — valores normales, pero con historial:
+| Par | Transacción 1 | Resultado | Transacción 2 | Resultado con memoria |
+|---|---|---|---|---|
+| C001 | tx#2 ($15,000, Desconocido) | 🚨 ALERTA | tx#4 ($500, Barcelona) | 🚨 ALERTA |
+| C005 | tx#3 ($3,000, Lista Negra) | ⚠️ REVISION | tx#5 ($1,200, Desconocido) | 🚨 ALERTA |
+
+**2.4** Después de la ejecución, mostrar el `memory_store.json`:
 ```sh
-python agents.py transactionC
-```
-Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
+# Windows (PowerShell)
+Get-Content memory_store.json
 
-Observar en el output:
+# Mac / Linux
+cat memory_store.json
+```
+
+Debes ver entradas para 3 clientes.
+
+> **Punto de discusión:** La transacción $500 en Barcelona (C001, tx#4)
+es objetivamente normal. La memoria es la única razón del bloqueo. ¿Cuándo es útil este patrón?
+> ¿Cuándo podría ser injusto?
+
+**2.5** Observar en el output de las tx escaladas:
 ```
 [Memory Agent] Previous suspicious record found → elevating risk to Critico.
 ```
 
-> **Punto de discusión:** La transacción C es normal por sus propios méritos ($500, Barcelona).
-> La memoria es la única razón del bloqueo. ¿Cuándo es útil este patrón?
-> ¿Cuándo podría ser injusto?
-
-**2.6** Ejecutar transactionB (C002, cliente sin historial):
-```sh
-python agents.py transactionB
-```
-Resultado esperado: `✅ TRANSACCION APROBADA`
-(C002 no tiene historial → se evalúa normalmente)
-
 ---
 
-## Escenario 3 — Archivos con problemas
+## Escenario 3 — Lote con errores de validación
 
-**Objetivo:** mostrar cómo el Orquestador valida entradas antes de llamar a los LLM.
+**Objetivo:** mostrar cómo el Orquestador valida cada transacción individualmente y continúa el lote aunque haya errores.
 
-**3.1** Archivo con campos faltantes:
+**3.1** Lote con campos faltantes en distintas combinaciones:
 ```sh
 python agents.py transactionE
 ```
 Resultado esperado:
-```
-[Orchestrator] ERROR: Missing required fields: {'memoria', 'amount', 'location'}
-```
-Notar que **los agentes LLM no se invocan** — el Orquestador rechaza la entrada.
+- Transacciones 1–3: mensajes de error del Orquestador indicando qué campos faltan. **El LLM nunca se invoca** para estas.
+- Transacción 4 (C001, $50,000, Lista Negra): doble riesgo extremo → `🚨 ALERTA DE BLOQUEO INMEDIATO`
+- Transacción 5 (C004, $100, Madrid): procesada normalmente.
+
+> **Punto clave:** El lote **no se interrumpe** por los errores de validación. El Orquestador actúa como guardián por transacción, no por lote.
 
 **3.2** Archivo que no existe:
 ```sh
 python agents.py transactionZ
 ```
-Resultado esperado:
-```
-[Orchestrator] ERROR: Transaction file not found: ...\data\transactionZ.json
-```
+Resultado esperado: error del Orquestador que sí aborta (el archivo no existe, no hay nada que procesar).
 
 **3.3** Sin argumento:
 ```sh
@@ -254,8 +254,7 @@ python agents.py
 ```
 Resultado esperado: instrucción de uso con lista de archivos disponibles.
 
-> **Punto de discusión:** El Orquestador actúa como guardián (gate-keeper).
-> ¿Qué otras validaciones añadirías en un sistema real?
+> **Punto de discusión:** ¿Cuál es la diferencia entre un error a nivel de archivo (sys.exit) y un error a nivel de transacción (print + continue)? ¿Qué diseño es más adecuado para producción?
 
 ---
 

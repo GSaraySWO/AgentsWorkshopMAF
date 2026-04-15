@@ -6,6 +6,16 @@ y un agente de memoria persistente, sobre dos backends intercambiables.
 
 > Nuevo en el workshop? Sigue la guia paso a paso en la carpeta [`workshop/`](workshop/).
 
+## Clientes de prueba
+
+| ID | Nombre | Perfil |
+|---|---|---|
+| C001 | Victor Medina | Historial de fraude confirmado |
+| C002 | Ana Garcia | Cliente legitima habitual |
+| C003 | Roberto Sanz | Empresario, montos altos legitimos |
+| C004 | Laura Torres | Cliente nueva, sin historial |
+| C005 | Carlos Mendez | Viajero frecuente, ubicaciones inusuales |
+
 ## Guia del Workshop
 
 Los modulos estan ordenados para completarse en secuencia. Cada uno incluye instrucciones,
@@ -94,11 +104,11 @@ Python/
   memory_store.json      — Historial persistente de clientes (auto-creado)
   config.py              — Selector de backend por variable de entorno
   data/
-    transactionA.json    — C001 | $15,000 | Desconocido  (alto riesgo, dos flags)
-    transactionB.json    — C002 | $800    | Madrid       (normal, cliente nuevo)
-    transactionC.json    — C001 | $500    | Barcelona    (normal, C001 tiene historial)
-    transactionD.json    — C003 | $12,000 | Madrid       (un flag: monto elevado)
-    transactionE.json    — C003 | campos faltantes       (validacion del Orquestador)
+    transactionA.json    — 5 transacciones mezcladas (Dia 1): 2 pares de escalacion intra-lote
+    transactionB.json    — 5 transacciones mezcladas (Dia 2): distintos patrones de riesgo
+    transactionC.json    — 5 transacciones mezcladas (Fin de semana): enfasis geo-riesgo
+    transactionD.json    — 5 transacciones mezcladas (Lunes corporativo): montos extremos
+    transactionE.json    — 3 transacciones invalidas + 2 validas (validacion del Orquestador)
   backends/
     base.py              — Contrato comun para cualquier backend
     azure_backend.py     — Implementacion Azure AI Foundry
@@ -162,7 +172,9 @@ python agents.py transactionA.json  # equivalente
 
 > Ver la guia detallada con puntos de discusion en [workshop/03-PruebasBasicas.md](workshop/03-PruebasBasicas.md).
 
-### Escenario A — Alto riesgo (dos flags)
+Cada archivo contiene un **array JSON de 5 transacciones** con los clientes mezclados. El Orquestador procesa cada transaccion en secuencia dentro del mismo run.
+
+### Escenario 1 — Lote completo sin memoria
 
 ```sh
 # Windows (PowerShell)
@@ -176,58 +188,40 @@ rm -f memory_store.json
 python agents.py transactionA
 ```
 
-`transactionA.json`: C001 | $15,000 | Desconocido
-
-Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO` (monto + ubicacion)
+Resultado: 5 transacciones evaluadas de forma aislada. Resultados representativos:
+- C001 $15,000 Desconocido → `🚨 ALERTA` (doble riesgo)
+- C001 $500 Barcelona → `✅ APROBADA` (sin flags, sin historial)
+- C005 $3,000 Lista Negra → `⚠️ REVISION` (blacklist)
 
 ---
 
-### Escenario B — Transaccion normal, cliente nuevo
+### Escenario 2 — Mismo lote con memoria (escalacion intra-lote)
 
 ```sh
-python agents.py transactionB
+# Limpiar historial primero
+Remove-Item memory_store.json -ErrorAction SilentlyContinue
 ```
-
-`transactionB.json`: C002 | $800 | Madrid
-
-Resultado esperado: `✅ TRANSACCION APROBADA`
-
----
-
-### Escenario C — Normal, pero cliente con historial sospechoso
-
-Primero ejecutar el Escenario A para registrar C001. Luego:
 
 ```sh
-python agents.py transactionC
+python agents.py transactionA
 ```
 
-`transactionC.json`: C001 | $500 | Barcelona
+Con `USE_MEMORY=true`, el resultado cambia para 2 transacciones gracias a la escalacion:
 
-Resultado con `USE_MEMORY=true`: `🚨 ALERTA DE BLOQUEO INMEDIATO` (escalada por memoria)
-Resultado con `USE_MEMORY=false`: `✅ TRANSACCION APROBADA` (evaluada de forma aislada)
+| Transaccion | Sin memoria | Con memoria | Razon |
+|---|---|---|---|
+| C001 $500 Barcelona (tx#4) | ✅ APROBADA | 🚨 ALERTA | Historial de tx#2 |
+| C005 $1,200 Desconocido (tx#5) | ⚠️ REVISION | 🚨 ALERTA | Historial de tx#3 |
 
 ---
 
-### Escenario D — Un solo flag: monto elevado, ubicacion normal
-
-```sh
-python agents.py transactionD
-```
-
-`transactionD.json`: C003 | $12,000 | Madrid
-
-Resultado esperado: `⚠️ TRANSACCION EN REVISION`
-
----
-
-### Escenario E — Archivo con campos faltantes
+### Escenario 3 — Validacion: lote con errores y transacciones validas
 
 ```sh
 python agents.py transactionE
 ```
 
-Resultado esperado: error claro del Orquestador, sin llamar a los LLM.
+`transactionE`: 3 transacciones invalidas (campos faltantes) + 2 validas al final. El Orquestador reporta cada error y continua el lote sin interrumpirlo. Las 2 transacciones validas se procesan normalmente.
 
 ---
 

@@ -16,7 +16,7 @@ from .base import AgentBackend, AgentSpec, NormalizedEvent, NormalizedMessage
 class GitHubModelsBackend(AgentBackend):
     def __init__(self) -> None:
         self._token = os.getenv("GITHUB_TOKEN")
-        self._model = self._normalize_model(os.getenv("GITHUB_MODEL", "gpt-4o"))
+        self._model = self._normalize_model(os.getenv("GITHUB_MODEL", "gpt-4o-mini"))
         self._endpoint = self._normalize_endpoint(
             os.getenv("GITHUB_ENDPOINT", "https://models.github.ai/inference")
         )
@@ -108,7 +108,7 @@ class GitHubModelsBackend(AgentBackend):
         tried = ", ".join(candidates)
         raise ValueError(
             f"Unknown model for GitHub Models. Configured '{configured}', tried: {tried}. "
-            "Set GITHUB_MODEL to a valid model such as 'openai/gpt-5-nano'."
+            "Set GITHUB_MODEL to a valid model such as 'openai/gpt-4o-mini'."
         ) from last_error
 
     @staticmethod
@@ -116,19 +116,19 @@ class GitHubModelsBackend(AgentBackend):
         cleaned = model.strip()
         if not cleaned:
             raise ValueError(
-                "GITHUB_MODEL is empty. Use a model like 'openai/gpt-5-nano' or 'gpt-5-nano'."
+                "GITHUB_MODEL is empty. Use a model like 'openai/gpt-4o-mini' or 'gpt-4o-mini'."
             )
 
         if cleaned.count("/") > 1:
             raise ValueError(
-                "Invalid GITHUB_MODEL format. Use 'gpt-5-nano' or 'openai/gpt-5-nano'."
+                "Invalid GITHUB_MODEL format. Use 'gpt-4o-mini' or 'openai/gpt-4o-mini'."
             )
 
         if "/" in cleaned:
             provider, model_name = cleaned.split("/", 1)
             if not provider.strip() or not model_name.strip():
                 raise ValueError(
-                    "Invalid GITHUB_MODEL format. Use 'gpt-5-nano' or 'openai/gpt-5-nano'."
+                    "Invalid GITHUB_MODEL format. Use 'gpt-4o-mini' or 'openai/gpt-4o-mini'."
                 )
 
         return cleaned

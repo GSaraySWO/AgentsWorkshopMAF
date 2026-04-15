@@ -1,5 +1,7 @@
-{
-  "clientId": "C001",
-  "amount": 15000,
-  "location": "Desconocido"
-}
+[
+  { "clientId": "C002", "amount": 800,   "location": "Madrid"      },
+  { "clientId": "C001", "amount": 15000, "location": "Desconocido" },
+  { "clientId": "C005", "amount": 3000,  "location": "Lista Negra" },
+  { "clientId": "C001", "amount": 500,   "location": "Barcelona"   },
+  { "clientId": "C005", "amount": 1200,  "location": "Desconocido" }
+]

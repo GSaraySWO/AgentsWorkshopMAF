@@ -45,8 +45,8 @@ def resolve_transaction_path(arg: str) -> str:
     return os.path.join(DATA_DIR, name)
 
 
-def load_transaction(path: str) -> dict:
-    """Rule: if the file is missing or has invalid format, abort."""
+def load_transaction(path: str) -> list[dict]:
+    """Load transaction file. File-level errors abort; returns list of raw transaction dicts."""
     if not os.path.exists(path):
         print(f"[Orchestrator] ERROR: Transaction file not found: {path}")
         sys.exit(1)
@@ -58,13 +58,20 @@ def load_transaction(path: str) -> dict:
             print(f"[Orchestrator] ERROR: Invalid JSON format — {exc}")
             sys.exit(1)
 
-    required_fields = {"clientId", "amount", "location"}
-    missing = required_fields - data.keys()
-    if missing:
-        print(f"[Orchestrator] ERROR: Missing required fields: {missing}")
+    if isinstance(data, dict):
+        data = [data]
+
+    if not isinstance(data, list) or len(data) == 0:
+        print("[Orchestrator] ERROR: Transaction file must contain a JSON object or a non-empty array.")
         sys.exit(1)
 
     return data
+
+
+def validate_transaction(tx: dict) -> set:
+    """Returns the set of missing required fields. Empty set means valid."""
+    required_fields = {"clientId", "amount", "location"}
+    return required_fields - tx.keys()
 
 
 SUSPICIOUS_KEYWORDS = {"Sospechoso", "Critico", "ALERTA", "REVISION"}
@@ -117,36 +124,86 @@ async def main():
 
     transaction_path = resolve_transaction_path(sys.argv[1])
 
-    # Step 1 — Orchestrator: load and validate
+    # Step 1 — Orchestrator: load file
     print(f"[Orchestrator] Memory: {'ENABLED' if USE_MEMORY else 'DISABLED'} (USE_MEMORY in .env)")
     print(f"[Orchestrator] Loading {os.path.basename(transaction_path)}...")
-    transaction = load_transaction(transaction_path)
-    print(f"[Orchestrator] Transaction valid. Client: {transaction['clientId']}")
+    transactions = load_transaction(transaction_path)
+    total = len(transactions)
+    print(f"[Orchestrator] {total} transaction(s) loaded.")
 
-    # Step 2 — Orchestrator: build enriched context (consults Memory Agent if needed)
-    context = build_context(transaction)
+    summary: list[dict] = []
 
-    # Step 3 — Run the AI agent pipeline (declared in pipeline.py)
-    outputs: list[list[NormalizedMessage]] = []
     async with get_backend() as backend:
         agents = [await backend.create_agent(spec) for spec in PIPELINE]
 
-        async for event in backend.run_workflow(agents, context):
-            if event.type == "output":
-                outputs.append(event.data)
+        for idx, transaction in enumerate(transactions, start=1):
+            print(f"\n{'=' * 60}")
+            print(f"[Orchestrator] Transaction {idx}/{total}")
 
-    # Step 4 — Display results
-    final_output = ""
-    if outputs:
-        print()
-        for i, msg in enumerate(outputs[-1], start=1):
-            print(f"{'-' * 60}\n{i:02d} [{msg.author_name}]\n{msg.text}")
-        final_output = outputs[-1][-1].text
+            # Step 2 — Validate individual transaction
+            missing = validate_transaction(transaction)
+            if missing:
+                print(f"[Orchestrator] ERROR: Missing required fields: {missing} — skipping.")
+                summary.append({
+                    "idx": idx,
+                    "clientId": transaction.get("clientId", "N/A"),
+                    "amount": transaction.get("amount", 0),
+                    "location": transaction.get("location", "N/A"),
+                    "result": "SKIPPED — campos faltantes",
+                })
+                continue
 
-    # Step 5 — Memory Agent: persist result
-    if final_output:
-        memory_write(transaction["clientId"], final_output)
-        print(f"\n[Memory Agent] Result saved for client {transaction['clientId']}.")
+            print(f"[Orchestrator] Client: {transaction['clientId']}")
+
+            # Step 3 — Build enriched context (consults Memory Agent if needed)
+            context = build_context(transaction)
+
+            # Step 4 — Run the AI agent pipeline (declared in pipeline.py)
+            outputs: list[list[NormalizedMessage]] = []
+            async for event in backend.run_workflow(agents, context):
+                if event.type == "output":
+                    outputs.append(event.data)
+
+            # Step 5 — Display results
+            final_output = ""
+            if outputs:
+                print()
+                for i, msg in enumerate(outputs[-1], start=1):
+                    print(f"{'-' * 60}\n{i:02d} [{msg.author_name}]\n{msg.text}")
+                final_output = outputs[-1][-1].text
+
+            # Step 6 — Memory Agent: persist result
+            if final_output:
+                memory_write(transaction["clientId"], final_output)
+                print(f"\n[Memory Agent] Result saved for client {transaction['clientId']}.")
+
+            # Accumulate summary entry
+            summary.append({
+                "idx": idx,
+                "clientId": transaction["clientId"],
+                "amount": transaction["amount"],
+                "location": transaction["location"],
+                "result": final_output.splitlines()[0] if final_output else "Sin resultado",
+            })
+
+    # ─── Final Summary Table ───────────────────────────────────────
+    print(f"\n{'=' * 60}")
+    print("RESUMEN DE TRANSACCIONES PROCESADAS")
+    print(f"{'=' * 60}")
+    header = f"{'#':>3}  {'Cliente':<10} {'Monto':>18}  {'Ubicación':<20} {'Resultado'}"
+    print(header)
+    print("-" * len(header))
+    for entry in summary:
+        amount_str = f"${entry['amount']:,.2f} USD"
+        print(
+            f"{entry['idx']:>3}  "
+            f"{entry['clientId']:<10} "
+            f"{amount_str:>18}  "
+            f"{entry['location']:<20} "
+            f"{entry['result']}"
+        )
+    print(f"{'=' * 60}")
+    print(f"[Orchestrator] Done. Processed {total} transaction(s) from {os.path.basename(transaction_path)}.")
 
 
 if __name__ == "__main__":

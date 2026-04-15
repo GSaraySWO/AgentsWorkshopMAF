@@ -1,5 +1,17 @@
 {
   "C001": {
     "last_result": "✅ TRANSACCION APROBADA"
+  },
+  "C002": {
+    "last_result": "⚠️ TRANSACCION EN REVISION: La transacción ha sido marcada como sospechosa debido al monto elevado. Se revisará más a fondo."
+  },
+  "C003": {
+    "last_result": "✅ TRANSACCION APROBADA"
+  },
+  "C004": {
+    "last_result": "⚠️ TRANSACCION EN REVISION: La ubicación \"Desconocido\" ha disparado una alerta de riesgo geográfico."
+  },
+  "C005": {
+    "last_result": "⚠️ TRANSACCION EN REVISION: La transacción presenta un riesgo sospechoso debido a la ubicación desconocida del cliente."
   }
 }

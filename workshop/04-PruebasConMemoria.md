@@ -93,9 +93,9 @@ USE_MEMORY=true
 
 ---
 
-## Demo completa: el escenario clave
+## Demo completa: escalación dentro de un mismo lote
 
-Este es el "momento aha" del workshop: la misma transacción produce resultados completamente distintos dependiendo del historial del cliente.
+Este es el "momento aha" del workshop: al procesar un lote de transacciones con memoria activa, el historial de un cliente se actualiza **después de cada transacción** — lo que significa que transacciones más tardías del mismo cliente en el mismo archivo pueden tener resultados completamente diferentes a las primeras.
 
 ### Paso 1 — Activar el entorno y limpiar el historial
 
@@ -121,21 +121,29 @@ rm -f memory_store.json
 
 ---
 
-### Paso 2 — Primera transacción de C001 (alto riesgo)
+### Paso 2 — Correr el lote completo con memoria activa
 
 ```sh
 python agents.py transactionA
 ```
 
-**transactionA:** C001 | $15,000 | Desconocido
+Las 5 transacciones se procesan en orden. El Agente de Memoria escribe el resultado de cada transacción **antes** de pasar a la siguiente. Observa los 2 pares de escalación:
 
-Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
+| # | Cliente | Monto | Ubicación | Sin memoria | Con memoria | Motivo |
+|---|---|---|---|---|---|---|
+| 1 | C002 | $800 | Madrid | ✅ | ✅ | Sin flags, sin historial |
+| 2 | C001 | $15,000 | Desconocido | 🚨 | 🚨 | Doble riesgo → historial guardado |
+| 3 | C005 | $3,000 | Lista Negra | ⚠️ | ⚠️ | Blacklist → historial guardado |
+| 4 | C001 | $500 | Barcelona | ✅ | **🚨** | ← escalación: historial de tx#2 |
+| 5 | C005 | $1,200 | Desconocido | ⚠️ | **🚨** | ← escalación: historial de tx#3 |
+
+Los dos pares de escalación en una sola ejecución:
+- **C001:** tx#2 (🚨 ALERTA) → tx#4 ($500 Barcelona → 🚨 ALERTA)
+- **C005:** tx#3 (⚠️ REVISION) → tx#5 ($1,200 Desconocido → 🚨 ALERTA)
 
 ---
 
-### Paso 3 — Inspeccionar el historial guardado
-
-Después de la ejecución, abre `memory_store.json`:
+### Paso 3 — Inspeccionar el historial al final del lote
 
 ```sh
 # Windows (PowerShell)
@@ -145,62 +153,73 @@ Get-Content memory_store.json
 cat memory_store.json
 ```
 
-Debes ver algo como:
+Debes ver entradas para 3 clientes. El valor de cada uno refleja la **última transacción procesada** del lote:
 
 ```json
 {
-  "C001": {
-    "last_result": "🚨 ALERTA DE BLOQUEO INMEDIATO: La transacción ha sido bloqueada..."
-  }
+  "C002": { "last_result": "✅ TRANSACCION APROBADA" },
+  "C001": { "last_result": "🚨 ALERTA DE BLOQUEO INMEDIATO: ..." },
+  "C005": { "last_result": "🚨 ALERTA DE BLOQUEO INMEDIATO: ..." }
 }
 ```
 
-La palabra `ALERTA` está presente en el resultado. Cuando el Orquestador lea este historial en la próxima ejecución de C001, `_is_suspicious_history()` devolverá `True` y agregará `"⚠️ CRITICAL RISK"` al contexto del Analizador.
+> **Detalle técnico:** C002 termina con ✅ (tx#1, $800, Madrid). La memoria refleja siempre el resultado más reciente, no el “peor” histórico.
 
 ---
 
-### Paso 4 — Segunda transacción de C001 (valores normales, pero con historial)
+### Paso 4 — El mecanismo de escalación en detalle
 
-```sh
-python agents.py transactionC
+Para entender por qué tx#4 (C001, $500, Barcelona) cambia de resultado:
+
+```
+[Memoria] Lectura de historial de C001...
+  → last_result: "🚨 ALERTA DE BLOQUEO INMEDIATO: ..."
+  → _is_suspicious_history() detecta "ALERTA" → True
+  → Orquestador antepone "⚠️ CRITICAL RISK" al contexto
+
+[Analizador recibe]:
+  "⚠️ CRITICAL RISK — Client has a prior suspicious record.
+   Transaction data:
+     Client ID: C001
+     Amount   : $500.00 USD
+     Location : Barcelona"
+
+  → El Analizador asigna riesgo Crítico (instrucción explícita en el prompt)
+
+[Reporte emite]: 🚨 ALERTA DE BLOQUEO INMEDIATO
 ```
 
-**transactionC:** C001 | $500 | Barcelona
-
-Sin memoria, esta transacción sería aprobada: $500 no supera el umbral de $10,000 y Barcelona no es una ubicación sospechosa. **Pero ahora C001 tiene historial.**
-
-Resultado esperado: `🚨 ALERTA DE BLOQUEO INMEDIATO`
-
-El Orquestador detectó la alerta previa de C001, elevó el riesgo a `Crítico` en el contexto, y el Analizador LLM la interpretó como tal — aunque los valores de la transacción sean normales.
+La transacción $500 en Barcelona es objetivamente normal — el único motivo del bloqueo es el historial.
 
 ---
 
-## Comparación visual: con y sin memoria
+### Paso 5 — Lote con errores de validación (transactionE)
 
-| | `USE_MEMORY=false` | `USE_MEMORY=true` |
-|---|---|---|
-| **transactionC** (C001, $500, Barcelona) | ✅ TRANSACCION APROBADA | 🚨 ALERTA DE BLOQUEO INMEDIATO |
-| ¿Por qué? | No hay contexto de historial; solo se evalúan los valores actuales | El historial de C001 (bloqueado en transactionA) eleva el riesgo a Crítico |
-
----
-
-## Prueba adicional: cliente sin historial sospechoso
-
-Ejecuta una transacción de un cliente que no haya sido bloqueado:
+`transactionE` mezcla 3 transacciones inválidas con 2 válidas. Ejecutar con memoria activa:
 
 ```sh
-python agents.py transactionB
+python agents.py transactionE
 ```
 
-**transactionB:** C002 | $800 | Madrid
+Comportamiento esperado:
+- Transacciones 1–3: el Orquestador reporta los campos faltantes y **continúa** (sin llamar al LLM, sin escribir en memoria).
+- Transacción 4 (C001, $50,000, Lista Negra): doble riesgo extremo → 🚨 (actualiza historial de C001).
+- Transacción 5 (C004, $100, Madrid): procesada normalmente → ✅ ó 🚨 dependiendo del historial previo de C004.
 
-Con `USE_MEMORY=true`, si C002 no tiene historial (o su historial es `✅ TRANSACCION APROBADA`), `_is_suspicious_history()` devuelve `False` y la transacción se evalúa normalmente.
+> Los errores de validación no interrumpen el lote ni corrompen la memoria — solo se saltan las transacciones inválidas.
 
-Resultado esperado: `✅ TRANSACCION APROBADA`
+---
 
-> **Para reflexionar:** ¿Qué pasaría si ejecutas `transactionD` (C003, $12,000, Madrid → ⚠️ EN REVISION) y luego `transactionC` con C003? ¿El sistema bloquearía a C003 por tener historial de revisión?
+## Comparación visual: con y sin memoria (mismo archivo, mismo run)
+
+| # | Cliente | Valores | `USE_MEMORY=false` | `USE_MEMORY=true` | Razón |
+|---|---|---|---|---|---|
+| 4 | C001 | $500, Barcelona | ✅ APROBADA | 🚨 ALERTA | tx#2 (🚨) guardado antes de tx#4 |
+| 5 | C005 | $1,200, Desconocido | ⚠️ REVISION | 🚨 ALERTA | tx#3 (⚠️) guardado antes de tx#5 |
+
+> **Para reflexionar:** Las dos transacciones escaladas son normales por sus propios méritos. La memoria es la única razón del bloqueo.
 >
-> Pista: busca la lista `SUSPICIOUS_KEYWORDS` en `agents.py` y verifica si `"REVISION"` está incluida.
+> Pista: busca la lista `SUSPICIOUS_KEYWORDS` en `agents.py` y verifica si `"REVISION"` está incluida. ¿Por qué hace que una ⚠️ REVISION también escale las siguientes transacciones del mismo cliente?
 
 ---
 
@@ -209,8 +228,9 @@ Resultado esperado: `✅ TRANSACCION APROBADA`
 Al finalizar este módulo debes haber:
 
 - [x] Activado `USE_MEMORY=true` en `.env`.
-- [x] Ejecutado `transactionA` y verificado que el historial de C001 se guardó en `memory_store.json`.
-- [x] Ejecutado `transactionC` y observado que el mismo cliente es bloqueado a pesar de que sus valores actuales no activan ninguna regla.
+- [x] Ejecutado `transactionA` y observado los 2 pares de escalación intra-lote.
+- [x] Inspeccionado `memory_store.json` al finalizar el lote y verificado los 3 clientes.
+- [x] Ejecutado `transactionE` y confirmado que los errores de validación no interrumpen el procesamiento de las transacciones válidas.
 - [x] Comprendido el flujo técnico completo: `memory_read` → `_is_suspicious_history` → enriquecimiento del contexto → Analizador LLM → `memory_write`.
 
 Continúa con [05-SiguientesPasos.md](05-SiguientesPasos.md) para llevar este sistema a Azure AI Foundry y habilitarle trazabilidad y escalabilidad de producción.
