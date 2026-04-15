@@ -337,4 +337,4 @@ Has completado el workshop de orquestación de agentes de IA. A lo largo de los 
 4. **Activaste** la memoria persistente y observaste su impacto en las decisiones.
 5. **Conectaste** el sistema a Azure AI Foundry con el SDK nativo y habilitaste trazabilidad.
 
-El sistema que construiste es la base de un agente de detección de fraude listo para producción.
+El sistema que construiste es la base de un agente de detección de fraude.
